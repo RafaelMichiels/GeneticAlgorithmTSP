@@ -1,0 +1,179 @@
+import pandas as pd
+import numpy as np
+import random
+from random import randint
+
+
+# Importing distance matrix
+distance_matrix = pd.read_csv(r'C:\Users\Rafael Michiels\Downloads\tour29.csv').to_numpy()
+
+
+class Individual:
+
+    def __init__(self, length):
+
+        self.order = list(np.random.permutation(length))
+        self.fitness = -1
+
+
+num_cities = len(distance_matrix)
+population = 50
+generations = 30
+mutation_rate = 0.10
+k = 3
+
+
+def genetic_algorithm():
+
+    individuals = init_individuals(population, num_cities)
+
+    for generation in range(generations):
+
+        individuals = fitness(individuals)
+        individuals = crossover(individuals)
+        individuals = mutation(individuals)
+        individuals = elimination(individuals)
+
+        fitnesses = np.array(list(map(lambda x: x.fitness, individuals)))
+        individuals_ordered = sorted(individuals, key=lambda ind: ind.fitness)
+        best_individual = individuals_ordered[0]
+
+        print('Generation: ' + str(generation), 'Mean fitness: ', str(np.mean(fitnesses)), '\t Best fitness: ', str(np.min(fitnesses)))
+
+
+def init_individuals(population, num_cities):
+
+    return [Individual(num_cities) for _ in range(population)]
+
+
+def fitness(individuals):
+
+    for individual in individuals:
+
+        dist = 0
+        order = individual.order
+
+        for i in range(num_cities-1):
+
+            num1 = order[i]
+            num2 = order[i + 1]
+            dist += distance_matrix[num1][num2]
+
+        dist += distance_matrix[order[-1]][order[1]]        # adding distance to first city
+
+        individual.fitness = dist
+
+    return individuals
+
+
+def crossover(individuals):
+
+    offspring = []
+
+    for _ in range(0, population):
+
+        parent1 = selection(individuals)
+        parent2 = selection(individuals)
+        parent1_order = parent1.order
+        parent2_order = parent2.order
+
+        child1 = Individual(num_cities)
+        child2 = Individual(num_cities)
+
+        crossover1 = randint(0, num_cities - 1)
+        crossover2 = randint(0, num_cities - 1)
+
+        order1 = ordering(crossover1, crossover2, parent1_order, parent2_order)
+        order2 = ordering(crossover1, crossover2, parent2_order, parent1_order)
+
+        child1.order = order1
+        child2.order = order2
+
+        offspring.append(child1)
+        offspring.append(child2)
+
+    individuals.extend(offspring)
+    fitness(individuals)
+
+    return individuals
+
+
+def mutation(individuals):
+
+    for individual in individuals:
+
+        if random.random() <= mutation_rate:
+
+            i = randint(0, num_cities - 1)
+            j = randint(0, num_cities - 1)
+
+            while i == j:
+
+                j = randint(0, num_cities - 1)
+
+            tmp = individual.order[i]
+            individual.order[i] = individual.order[j]
+            individual.order[j] = tmp
+
+    return individuals
+
+
+def selection(individuals):
+
+    selected = sorted(random.sample(individuals, k), key=lambda ind: ind.fitness)
+
+    return selected[0]
+
+
+def elimination(individuals):
+
+    sorted_individuals = sorted(individuals, key=lambda ind: ind.fitness)
+
+    return sorted_individuals[:population]
+
+
+def ordering(crossover1, crossover2, parent1_order, parent2_order):
+
+    order = list(np.zeros(num_cities) - 1)
+    order[min(crossover1, crossover2): max(crossover1, crossover2)] = parent1_order[min(crossover1, crossover2): max(crossover1, crossover2)]
+
+    for i in range(max(crossover1, crossover2), num_cities):
+
+        j = i
+
+        while order[i] == -1:
+
+            if order.count(parent2_order[j]) == 0:
+
+                order[i] = parent2_order[j]
+
+            elif order.count(parent2_order[j]) != 0 and j < num_cities - 2:
+
+                j += 1
+
+            else:
+
+                j = 0
+
+    for i in range(0, min(crossover1, crossover2)):
+
+        j = i
+
+        while order[i] == -1:
+
+            if order.count(parent2_order[j]) == 0:
+
+                order[i] = parent2_order[j]
+
+            elif order.count(parent2_order[j]) != 0 and j < num_cities:
+
+                j += 1
+
+            else:
+
+                j = 0
+
+    return order
+
+
+genetic_algorithm()
